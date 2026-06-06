@@ -1,17 +1,12 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'https://tps-cert-backend.onrender.com';
 
 function getToken() {
-  // Supabase stores token here — matches your portal auth
-  const raw = localStorage.getItem(
-    `sb-ukpmypsuzuoecwpxavty-auth-token`
-  );
+  const raw = localStorage.getItem('sb-ukpmypsuzuoecwpxavty-auth-token');
   if (!raw) return '';
   try {
     const parsed = JSON.parse(raw);
     return parsed.access_token || '';
-  } catch {
-    return '';
-  }
+  } catch { return ''; }
 }
 
 function authHeaders() {
@@ -27,10 +22,7 @@ async function apiFetch(path, options = {}) {
     headers: { ...authHeaders(), ...(options.headers || {}) },
   });
   const json = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const msg = json.error || `Request failed (${response.status})`;
-    throw new Error(msg);
-  }
+  if (!response.ok) throw new Error(json.error || `Request failed (${response.status})`);
   return json;
 }
 
@@ -126,6 +118,10 @@ export async function reindexDocument(id) {
   return apiFetch(`/api/admin/kb/reindex/${id}`, { method: 'POST' });
 }
 
+export async function reindexAll() {
+  return apiFetch('/api/admin/kb/reindex-all', { method: 'POST' });
+}
+
 export async function getSearchLogs(params = {}) {
   const qs = new URLSearchParams(
     Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined)),
@@ -137,6 +133,7 @@ export async function getAnalytics(days = 30) {
   const { data } = await apiFetch(`/api/admin/kb/analytics?days=${days}`);
   return data;
 }
+
 export async function getAISettings() {
   return {
     model:               'claude-sonnet-4-6',
