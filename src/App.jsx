@@ -8,11 +8,11 @@ import AdminDashboard from './pages/dashboard/AdminDashboard'
 import TechManagerDashboard from './pages/dashboard/TechManagerDashboard'
 import AuditorDashboard from './pages/dashboard/AuditorDashboard'
 import SalesDashboard from './pages/dashboard/SalesDashboard'
+import AdminKnowledge from './pages/AdminKnowledge'
+import AskAIWidget from './components/AskAIWidget'
 
-// Dispatches to the correct dashboard based on the user's role
 function DashboardRouter() {
   const { profile, loading } = useAuth()
-
   if (loading || !profile) {
     return (
       <div className="loading-wrap">
@@ -21,7 +21,6 @@ function DashboardRouter() {
       </div>
     )
   }
-
   switch (profile.role) {
     case 'admin':             return <AdminDashboard />
     case 'technical_manager': return <TechManagerDashboard />
@@ -33,27 +32,32 @@ function DashboardRouter() {
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/login"        element={<Login />} />
-      <Route path="/unauthorized" element={<Unauthorized />} />
+    <>
+      <Routes>
+        {/* Public */}
+        <Route path="/login"        element={<Login />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
 
-      {/* Authenticated — AppShell wraps all protected pages */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <AppShell />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardRouter />} />
-        {/* Phase 2+ routes added here as modules are built */}
-      </Route>
+        {/* Authenticated — AppShell wraps all protected pages */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <AppShell />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardRouter />} />
+          <Route path="admin/knowledge" element={<AdminKnowledge />} />
+        </Route>
 
-      {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+
+      {/* Ask AI widget — shows on all authenticated pages */}
+      <AskAIWidget />
+    </>
   )
 }
