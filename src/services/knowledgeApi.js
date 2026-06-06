@@ -137,3 +137,20 @@ export async function getAnalytics(days = 30) {
   const { data } = await apiFetch(`/api/admin/kb/analytics?days=${days}`);
   return data;
 }
+export async function getAISettings() {
+  return {
+    model:               'claude-sonnet-4-6',
+    maxTokens:           1500,
+    similarityThreshold: 0.35,
+    chunkSize:           512,
+    embeddingModel:      'voyage-3-lite',
+    driveRootFolderId:   '1u4JP9LTMsfv-dAbSQyFEA03iQ5rdnqtM',
+  };
+}
+
+export async function updateAISettings(settings) {
+  return apiFetch('/api/admin/kb/settings', {
+    method: 'PATCH',
+    body:   JSON.stringify(settings),
+  });
+}
