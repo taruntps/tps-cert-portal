@@ -43,6 +43,123 @@ const PANEL_W = 400;
 // shared state for header button sync
 const shared = { open: false, toggle: null };
 
+// ─── Format answer text ───────────────────────────────────────────────────────
+// Converts literal \n → real newlines, strips JSON fences, cleans up output
+function formatAnswer(text) {
+  if (!text) return '';
+  return text
+    .replace(/\\n/g, '\n')   // literal \n → real newline
+    .replace(/\\t/g, '\t')   // literal \t → real tab
+    .replace(/^```(?:json)?\n?/m, '')  // strip opening JSON fence
+    .replace(/\n?```$/m, '')           // strip closing JSON fence
+    .trim();
+}
+
+// ─── Render formatted text with bold, bullets, and tables ────────────────────
+function FormattedText({ text, color }) {
+  const lines = text.split('\n');
+  return (
+    <div style={{ lineHeight: 1.65 }}>
+      {lines.map((line, i) => {
+        // Table row: | col1 | col2 |
+        if (line.trim().startsWith('|')) {
+          const isHeader = lines[i + 1]?.trim().match(/^\|[-| ]+\|$/);
+          const isSep    = line.trim().match(/^\|[-| ]+\|$/);
+          if (isSep) return null;
+          const cells = line.split('|').filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+          return (
+            <div key={i} style={{
+              display: 'flex', gap: 0,
+              background: isHeader ? C.g100 : 'transparent',
+              borderBottom: `1px solid ${C.border}`,
+              marginBottom: 0,
+            }}>
+              {cells.map((cell, j) => (
+                <div key={j} style={{
+                  flex: 1, padding: '4px 8px', fontSize: 12,
+                  fontWeight: isHeader ? 700 : 400,
+                  color: color || C.g900,
+                  borderRight: j < cells.length - 1 ? `1px solid ${C.border}` : 'none',
+                }}>
+                  {renderInline(cell.trim(), color)}
+                </div>
+              ))}
+            </div>
+          );
+        }
+
+        // Bullet point
+        if (line.trim().startsWith('• ') || line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+          const content = line.trim().slice(2);
+          return (
+            <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 3 }}>
+              <span style={{ color: C.teal, fontSize: 12, marginTop: 2, flexShrink: 0 }}>•</span>
+              <span style={{ fontSize: 13.5, color: color || C.g900 }}>{renderInline(content, color)}</span>
+            </div>
+          );
+        }
+
+        // Numbered list
+        if (/^\d+\.\s/.test(line.trim())) {
+          const match   = line.trim().match(/^(\d+)\.\s(.*)$/);
+          const num     = match?.[1];
+          const content = match?.[2] || '';
+          return (
+            <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 3 }}>
+              <span style={{ color: C.teal, fontSize: 12, marginTop: 2, flexShrink: 0, minWidth: 16 }}>{num}.</span>
+              <span style={{ fontSize: 13.5, color: color || C.g900 }}>{renderInline(content, color)}</span>
+            </div>
+          );
+        }
+
+        // Heading line (##, ###, ──── )
+        if (line.trim().startsWith('##') || line.trim().startsWith('**') && line.trim().endsWith('**')) {
+          const content = line.trim().replace(/^#+\s*/, '').replace(/^\*\*/, '').replace(/\*\*$/, '');
+          return (
+            <div key={i} style={{
+              fontWeight: 700, fontSize: 13, color: color || C.g900,
+              marginTop: 10, marginBottom: 4, letterSpacing: 0.2,
+            }}>
+              {content}
+            </div>
+          );
+        }
+
+        // Divider
+        if (line.trim().match(/^[-─=]{3,}$/)) {
+          return <hr key={i} style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '6px 0' }} />;
+        }
+
+        // Empty line → spacing
+        if (!line.trim()) {
+          return <div key={i} style={{ height: 6 }} />;
+        }
+
+        // Normal line
+        return (
+          <div key={i} style={{ fontSize: 13.5, color: color || C.g900, marginBottom: 2 }}>
+            {renderInline(line, color)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Render inline bold **text** and italic _text_
+function renderInline(text, color) {
+  const parts = text.split(/(\*\*[^*]+\*\*|_[^_]+_)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} style={{ fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('_') && part.endsWith('_')) {
+      return <em key={i}>{part.slice(1, -1)}</em>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 function ConfBadge({ level }) {
   const m = { High: [C.greenBg, C.green], Medium: [C.amberBg, C.amber], Low: [C.redBg, C.red] };
   const [bg, col] = m[level] || m.Low;
@@ -116,10 +233,14 @@ function Bubble({ msg, onFeedback }) {
         color: isUser ? C.white : C.g900,
         border: isUser ? 'none' : `1px solid ${C.border}`,
         borderRadius: isUser ? '14px 14px 3px 14px' : '3px 14px 14px 14px',
-        padding: '10px 13px', fontSize: 13.5, lineHeight: 1.65,
+        padding: '10px 13px',
         boxShadow: isUser ? '0 2px 12px rgba(11,36,71,0.2)' : '0 1px 6px rgba(11,36,71,0.06)',
-        whiteSpace: 'pre-wrap',
-      }}>{msg.content}</div>
+      }}>
+        {isUser
+          ? <span style={{ fontSize: 13.5, color: C.white }}>{msg.content}</span>
+          : <FormattedText text={msg.content} color={C.g900} />
+        }
+      </div>
       {!isUser && (
         <div style={{ maxWidth: '88%' }}>
           <SourcePills sources={msg.sources} />
@@ -247,7 +368,7 @@ export default function AskAIWidget() {
       const res    = result.response || result;
       setMessages(p => [...p, {
         role: 'assistant',
-        content: res.directAnswer || 'No answer generated.',
+        content: formatAnswer(res.directAnswer || 'No answer generated.'),
         sources: res.sourceDocuments || [],
         confidence: res.confidenceLevel,
         logId: res.logId,
