@@ -47,11 +47,28 @@ const shared = { open: false, toggle: null };
 // Converts literal \n → real newlines, strips JSON fences, cleans up output
 function formatAnswer(text) {
   if (!text) return '';
-  return text
-    .replace(/\\n/g, '\n')   // literal \n → real newline
-    .replace(/\\t/g, '\t')   // literal \t → real tab
-    .replace(/^```(?:json)?\n?/m, '')  // strip opening JSON fence
-    .replace(/\n?```$/m, '')           // strip closing JSON fence
+
+  // Emergency extractor: if raw JSON passed, pull directAnswer out
+  let processed = text.trim();
+  if (processed.includes('"directAnswer"')) {
+    try {
+      const s = processed.indexOf('{');
+      const e = processed.lastIndexOf('}');
+      if (s !== -1 && e !== -1) {
+        const parsed = JSON.parse(processed.slice(s, e + 1));
+        if (parsed.directAnswer) processed = parsed.directAnswer;
+      }
+    } catch { /* keep original */ }
+  }
+
+  return processed
+    .replace(/\n/g, '
+')
+    .replace(/\t/g, '	')
+    .replace(/^```(?:json)?
+?/m, '')
+    .replace(/
+?```$/m, '')
     .trim();
 }
 
@@ -164,14 +181,13 @@ function ConfBadge({ level }) {
   const m = { High: [C.greenBg, C.green], Medium: [C.amberBg, C.amber], Low: [C.redBg, C.red] };
   const [bg, col] = m[level] || m.Low;
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 4,
-      background: bg, color: col, border: `1px solid ${col}30`,
-      borderRadius: 20, padding: '2px 8px',
-      fontSize: 10, fontWeight: 700, letterSpacing: 0.3,
+    <span title={level} style={{
+      display: 'inline-flex', alignItems: 'center',
+      background: bg, border: `1px solid ${col}30`,
+      borderRadius: '50%', width: 12, height: 12,
+      flexShrink: 0,
     }}>
-      <span style={{ width: 5, height: 5, borderRadius: '50%', background: col, display: 'inline-block' }} />
-      {level}
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: col, display: 'inline-block', margin: 'auto' }} />
     </span>
   );
 }
